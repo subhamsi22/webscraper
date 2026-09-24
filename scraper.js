@@ -275,25 +275,78 @@ async function scrapeGoogleBusiness(businessType, location, options = {}) {
   try {
     const page = await browser.newPage();
     await page.setViewport({ width: 1366, height: 768 });
-    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36');
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36');
     await page.setExtraHTTPHeaders({
-      'Accept-Language': 'en-US,en;q=0.9'
+      'Accept-Language': 'en-US,en;q=0.9',
+      'sec-ch-ua': '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
+      'sec-ch-ua-mobile': '?0',
+      'sec-ch-ua-platform': '"Windows"'
     });
 
+    // Stealth: Hide webdriver from bot detection
+    await page.evaluateOnNewDocument(() => {
+      Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+      window.navigator.chrome = { runtime: {} };
+      Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
+      Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
+    });
+
+    // Set Google consent cookies to prevent consent wall on cloud/EU/US IPs
+    try {
+      await page.setCookie(
+        { name: 'SOCS', value: 'CAESHAgBEhJnd3NfMjAyNDA5MjQtMF9SQzEaAmVuIAEaBgiA_L20Bg', domain: '.google.com', path: '/' },
+        { name: 'CONSENT', value: 'PENDING+999', domain: '.google.com', path: '/' }
+      );
+    } catch (cookieErr) {
+      console.log('[Scraper] Cookie set warning:', cookieErr.message);
+    }
+
     const searchQuery = `${businessType.trim()} in ${location.trim()}`;
-    const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(searchQuery)}&udm=local&hl=en`;
+    let searchUrl = `https://www.google.com/search?q=${encodeURIComponent(searchQuery)}&udm=local&hl=en`;
 
     console.log(`[Scraper] Navigating to: ${searchUrl}`);
     await page.goto(searchUrl, { waitUntil: 'domcontentloaded', timeout: 35000 });
 
-    // Wait for the local business cards to render
-    try {
-      await page.waitForSelector('div.VkpGBb, div.cXedhc, div[jscontroller][data-cid]', { timeout: 12000 });
-    } catch (e) {
-      console.log('[Scraper] Wait selector timeout or zero cards initially found.');
+    // Handle Google Consent page if redirected
+    const currentUrl = page.url();
+    console.log(`[Scraper] Loaded page URL: ${currentUrl} | Title: ${await page.title().catch(() => '')}`);
+
+    if (currentUrl.includes('consent.google') || (await page.$('#L2AGLb, #W0wltc, form[action*="consent"] button'))) {
+      console.log('[Scraper] Google Consent detected. Auto-accepting...');
+      try {
+        const acceptBtn = await page.$('#L2AGLb, button[aria-label*="Accept all"], button[aria-label*="Alle akzeptieren"], form[action*="consent"] button');
+        if (acceptBtn) {
+          await Promise.all([
+            page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 15000 }).catch(() => {}),
+            acceptBtn.click()
+          ]);
+          console.log('[Scraper] Consent accepted. Resumed at:', page.url());
+        }
+      } catch (err) {
+        console.log('[Scraper] Consent click error:', err.message);
+      }
     }
 
-    // Additional settling time for dynamic Google components
+    // Wait for the local business cards to render
+    const cardSelectorList = 'div[jscontroller][data-cid], div.VkpGBb, div.cXedhc, div[data-cid], div.uSZmif, div.rlfl__tls > div';
+    try {
+      await page.waitForSelector(cardSelectorList, { timeout: 8000 });
+    } catch (e) {
+      console.log('[Scraper] udm=local wait selector timeout. Checking if standard search has results...');
+    }
+
+    // Check if cards were found, if not, fallback to standard Google search query
+    let hasCards = await page.$$eval(cardSelectorList, els => els.length > 0).catch(() => false);
+    if (!hasCards) {
+      console.log('[Scraper] No cards on udm=local. Falling back to standard Google search...');
+      const fallbackUrl = `https://www.google.com/search?q=${encodeURIComponent(searchQuery)}&hl=en`;
+      await page.goto(fallbackUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+      try {
+        await page.waitForSelector(cardSelectorList, { timeout: 8000 });
+      } catch (err) {}
+    }
+
+    // Additional settling time
     await new Promise(r => setTimeout(r, 2000));
 
     if (scrollMore) {
@@ -306,7 +359,9 @@ async function scrapeGoogleBusiness(businessType, location, options = {}) {
 
     // Run extraction inside the live browser page with full fidelity
     const extractedData = await page.evaluate(() => {
-      const rawCards = Array.from(document.querySelectorAll('div[jscontroller][data-cid], div.VkpGBb, div.cXedhc'));
+      const rawCards = Array.from(document.querySelectorAll(
+        'div[jscontroller][data-cid], div.VkpGBb, div.cXedhc, div[data-cid], div.uSZmif, div.rlfl__tls > div'
+      ));
 
       if (rawCards.length === 0) {
         return { data: [], txt: '' };
