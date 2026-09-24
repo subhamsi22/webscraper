@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: googlecrmfinder-web
+    env: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: free
+    region: oregon
+    envVars:
+      - key: PORT
+        value: 3000

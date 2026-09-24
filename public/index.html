@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Google Business Profile Finder | Web CRM & CSV Lead Exporter</title>
+  
+  <!-- Google Fonts & Bootstrap 5 & Icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Top Navigation Bar -->
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark-glass sticky-top py-3">
+    <div class="container">
+      <a class="navbar-brand d-flex align-items-center gap-2" href="#">
+        <div class="brand-icon">
+          <i class="bi bi-geo-alt-fill text-primary"></i>
+        </div>
+        <div>
+          <span class="brand-title fw-bold text-white">Google CRM Finder</span>
+          <span class="badge bg-primary-subtle text-primary border border-primary-subtle ms-2">Web Edition</span>
+        </div>
+      </a>
+
+      <div class="d-flex align-items-center gap-3">
+        <div id="serverStatusBadge" class="status-indicator">
+          <span class="status-dot online"></span>
+          <span class="status-text text-muted small">Checking Server...</span>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Container -->
+  <main class="container my-4 my-md-5">
+    
+    <!-- Hero / Header Section -->
+    <div class="text-center mb-4 pb-2">
+      <h1 class="hero-title fw-extrabold text-white">
+        Google Business Profile <span class="text-gradient">CSV Exporter</span>
+      </h1>
+      <p class="hero-subtitle text-secondary mx-auto">
+        Enter a business type and city to extract business names, verified phone numbers, ratings, addresses, and download clean CSV leads instantly.
+      </p>
+    </div>
+
+    <!-- Navigation Tabs (Live Search vs Offline HTML) -->
+    <ul class="nav nav-pills justify-content-center mb-4" id="mainTab" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link active rounded-pill px-4 py-2" id="search-tab" data-bs-toggle="pill" data-bs-target="#search-tab-pane" type="button" role="tab">
+          <i class="bi bi-search me-2"></i> Live Search & Export
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link rounded-pill px-4 py-2" id="offline-tab" data-bs-toggle="pill" data-bs-target="#offline-tab-pane" type="button" role="tab">
+          <i class="bi bi-file-earmark-code me-2"></i> Offline HTML Extractor
+        </button>
+      </li>
+    </ul>
+
+    <div class="tab-content" id="mainTabContent">
+      
+      <!-- TAB 1: Live Search & Export -->
+      <div class="tab-pane fade show active" id="search-tab-pane" role="tabpanel">
+        
+        <!-- Search Card -->
+        <div class="card search-card shadow-lg border-0 mb-4">
+          <div class="card-body p-4 p-md-5">
+            <form id="finderForm">
+              <div class="row g-3 align-items-end">
+                
+                <!-- Business Type / Name -->
+                <div class="col-12 col-md-5">
+                  <label for="businessType" class="form-label text-light fw-semibold">
+                    <i class="bi bi-building me-1 text-primary"></i> Business Type / Name
+                  </label>
+                  <div class="input-group input-group-lg">
+                    <span class="input-group-text bg-dark-input border-secondary text-secondary">
+                      <i class="bi bi-briefcase"></i>
+                    </span>
+                    <input type="text" class="form-control bg-dark-input border-secondary text-white" 
+                           id="businessType" placeholder="e.g. Restaurants, Computer Hardware, Dentists" required>
+                  </div>
+                </div>
+
+                <!-- Location -->
+                <div class="col-12 col-md-4">
+                  <label for="location" class="form-label text-light fw-semibold">
+                    <i class="bi bi-geo-alt me-1 text-danger"></i> Location / City
+                  </label>
+                  <div class="input-group input-group-lg">
+                    <span class="input-group-text bg-dark-input border-secondary text-secondary">
+                      <i class="bi bi-pin-map"></i>
+                    </span>
+                    <input type="text" class="form-control bg-dark-input border-secondary text-white" 
+                           id="location" placeholder="e.g. Mumbai, Delhi, New York" required>
+                  </div>
+                </div>
+
+                <!-- Submit Button -->
+                <div class="col-12 col-md-3">
+                  <button type="submit" id="searchBtn" class="btn btn-primary btn-lg w-100 fw-bold py-3 shadow-sm d-flex align-items-center justify-content-center gap-2">
+                    <i class="bi bi-cloud-arrow-down-fill"></i>
+                    <span>Find & Download CSV</span>
+                  </button>
+                </div>
+
+              </div>
+
+              <!-- Options and Settings -->
+              <div class="d-flex flex-wrap align-items-center justify-content-between mt-3 pt-2 gap-3 border-top border-secondary-subtle">
+                <div class="d-flex flex-wrap gap-4">
+                  <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="autoDownloadCheck" checked>
+                    <label class="form-check-label text-light small" for="autoDownloadCheck">
+                      Auto-download CSV immediately
+                    </label>
+                  </div>
+                  <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="scrollMoreCheck">
+                    <label class="form-check-label text-light small" for="scrollMoreCheck">
+                      Scroll to load more results (Deep search)
+                    </label>
+                  </div>
+                </div>
+
+                <div class="text-secondary small">
+                  Google Local Search (udm=local) engine
+                </div>
+              </div>
+
+              <!-- Quick Presets -->
+              <div class="quick-presets mt-3 pt-2">
+                <span class="text-secondary small me-2">Try quick search:</span>
+                <span class="preset-tag" data-type="Restaurants" data-loc="Mumbai">🍕 Restaurants in Mumbai</span>
+                <span class="preset-tag" data-type="Computer Hardware Company" data-loc="Mumbai">💻 Hardware in Mumbai</span>
+                <span class="preset-tag" data-type="Dentists" data-loc="Delhi">🦷 Dentists in Delhi</span>
+                <span class="preset-tag" data-type="Hotels" data-loc="Goa">🏨 Hotels in Goa</span>
+                <span class="preset-tag" data-type="Gyms" data-loc="Bangalore">🏋️ Gyms in Bangalore</span>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- Live Status / Loading Banner -->
+        <div id="loadingBanner" class="card loading-card border-0 mb-4 d-none">
+          <div class="card-body p-4 text-center">
+            <div class="spinner-border text-primary mb-3" style="width: 3rem; height: 3rem;" role="status">
+              <span class="visually-hidden">Loading...</span>
+            </div>
+            <h5 id="loadingTitle" class="text-white fw-bold mb-1">Searching Google Business Profiles...</h5>
+            <p id="loadingMsg" class="text-secondary mb-0">Launching headless Chrome and extracting business profiles with phone numbers and ratings...</p>
+          </div>
+        </div>
+
+        <!-- Error Alert -->
+        <div id="errorAlert" class="alert alert-danger alert-dismissible fade show d-none" role="alert">
+          <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-exclamation-triangle-fill fs-5"></i>
+            <div>
+              <strong>Scrape Error:</strong> <span id="errorMessage">Something went wrong.</span>
+            </div>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+
+        <!-- Results Section (Visible after scrape) -->
+        <div id="resultsSection" class="results-container d-none">
+          
+          <!-- Summary Metric Cards -->
+          <div class="row g-3 mb-4">
+            <div class="col-6 col-md-3">
+              <div class="stat-card p-3 rounded-4">
+                <div class="stat-label text-secondary small">Total Businesses</div>
+                <div id="statTotal" class="stat-val text-white fw-bold fs-3">0</div>
+                <div class="stat-sub text-primary small"><i class="bi bi-check-circle-fill me-1"></i> Profiles extracted</div>
+              </div>
+            </div>
+            <div class="col-6 col-md-3">
+              <div class="stat-card p-3 rounded-4">
+                <div class="stat-label text-secondary small">With Phone Number</div>
+                <div id="statPhones" class="stat-val text-success fw-bold fs-3">0</div>
+                <div class="stat-sub text-success small"><i class="bi bi-telephone-fill me-1"></i> Contactable leads</div>
+              </div>
+            </div>
+            <div class="col-6 col-md-3">
+              <div class="stat-card p-3 rounded-4">
+                <div class="stat-label text-secondary small">Average Rating</div>
+                <div id="statRating" class="stat-val text-warning fw-bold fs-3">0.0</div>
+                <div class="stat-sub text-warning small"><i class="bi bi-star-fill me-1"></i> Google Reviews</div>
+              </div>
+            </div>
+            <div class="col-6 col-md-3">
+              <div class="stat-card p-3 rounded-4">
+                <div class="stat-label text-secondary small">Top Category</div>
+                <div id="statCategory" class="stat-val text-info fw-bold fs-5 text-truncate">N/A</div>
+                <div class="stat-sub text-info small"><i class="bi bi-tag-fill me-1"></i> Primary industry</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Actions Toolbar -->
+          <div class="card action-toolbar-card border-0 mb-3">
+            <div class="card-body p-3 d-flex flex-wrap align-items-center justify-content-between gap-3">
+              
+              <!-- Filter inside results -->
+              <div class="d-flex align-items-center gap-2 flex-grow-1" style="max-width: 320px;">
+                <div class="input-group">
+                  <span class="input-group-text bg-dark-input border-secondary text-secondary">
+                    <i class="bi bi-filter"></i>
+                  </span>
+                  <input type="text" id="tableFilter" class="form-control bg-dark-input border-secondary text-white" 
+                         placeholder="Filter results by name, phone...">
+                </div>
+              </div>
+
+              <!-- Export Buttons -->
+              <div class="d-flex flex-wrap align-items-center gap-2">
+                <button id="downloadCsvBtn" class="btn btn-success fw-semibold d-flex align-items-center gap-2">
+                  <i class="bi bi-file-earmark-spreadsheet-fill"></i> Download CSV
+                </button>
+                <button id="downloadJsonBtn" class="btn btn-outline-info fw-semibold d-flex align-items-center gap-2">
+                  <i class="bi bi-filetype-json"></i> Download JSON
+                </button>
+                <button id="downloadTxtBtn" class="btn btn-outline-secondary fw-semibold d-flex align-items-center gap-2">
+                  <i class="bi bi-file-text"></i> Download TXT
+                </button>
+                <button id="copyCsvBtn" class="btn btn-outline-light fw-semibold d-flex align-items-center gap-2">
+                  <i class="bi bi-clipboard"></i> Copy CSV
+                </button>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Interactive Results Table -->
+          <div class="card table-card border-0 shadow-lg">
+            <div class="table-responsive">
+              <table class="table table-dark table-hover align-middle mb-0" id="resultsTable">
+                <thead>
+                  <tr class="table-header">
+                    <th scope="col" style="width: 50px;">#</th>
+                    <th scope="col">Company Name</th>
+                    <th scope="col">Phone</th>
+                    <th scope="col">Rating</th>
+                    <th scope="col">Category</th>
+                    <th scope="col">Location / Address</th>
+                    <th scope="col">Timing & Status</th>
+                    <th scope="col" class="text-end">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="resultsTableBody">
+                  <!-- Injected via app.js -->
+                </tbody>
+              </table>
+            </div>
+            <div id="tableEmptyMessage" class="p-4 text-center text-secondary d-none">
+              No matching business profiles found with your filter.
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- TAB 2: Offline HTML Extractor -->
+      <div class="tab-pane fade" id="offline-tab-pane" role="tabpanel">
+        <div class="card search-card shadow-lg border-0">
+          <div class="card-body p-4 p-md-5">
+            <h4 class="text-white fw-bold mb-2">Offline Google Search HTML Parser</h4>
+            <p class="text-secondary mb-4">
+              If you have saved a Google Search HTML page (`.html`), you can upload or paste it here to extract CSV leads offline without running a browser!
+            </p>
+
+            <div class="mb-3">
+              <label for="htmlFileInput" class="form-label text-light fw-semibold">Upload Google Search .html file</label>
+              <input class="form-control bg-dark-input border-secondary text-white" type="file" id="htmlFileInput" accept=".html,.htm">
+            </div>
+
+            <div class="text-center text-secondary my-3">- OR PASTE HTML CONTENT -</div>
+
+            <div class="mb-3">
+              <label for="htmlPasteArea" class="form-label text-light fw-semibold">Paste Raw HTML</label>
+              <textarea class="form-control bg-dark-input border-secondary text-white font-monospace" 
+                        id="htmlPasteArea" rows="6" placeholder="Paste Google search page HTML source here..."></textarea>
+            </div>
+
+            <button id="parseHtmlBtn" class="btn btn-warning btn-lg fw-bold px-4 py-2 d-flex align-items-center gap-2">
+              <i class="bi bi-file-earmark-arrow-down-fill"></i> Extract CSV from HTML
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- Details Modal -->
+  <div class="modal fade" id="detailsModal" tabindex="-1" aria-labelledby="detailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content bg-dark text-white border-secondary">
+        <div class="modal-header border-secondary">
+          <h5 class="modal-title fw-bold" id="detailsModalLabel">Business Details</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-12 col-md-6">
+              <label class="text-secondary small">Company Name</label>
+              <div id="modalCompanyName" class="fw-bold fs-5 text-white"></div>
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="text-secondary small">Phone Number</label>
+              <div id="modalPhone" class="fw-semibold text-success fs-5"></div>
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="text-secondary small">Rating & Reviews</label>
+              <div id="modalRating" class="text-warning"></div>
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="text-secondary small">Category</label>
+              <div id="modalCategory" class="text-info"></div>
+            </div>
+            <div class="col-12">
+              <label class="text-secondary small">Address / Location</label>
+              <div id="modalLocation" class="text-light"></div>
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="text-secondary small">Status & Closing Time</label>
+              <div id="modalStatus" class="text-light"></div>
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="text-secondary small">Service Options</label>
+              <div id="modalServices" class="text-light"></div>
+            </div>
+            <div class="col-12">
+              <label class="text-secondary small">Raw Full Text / Snippet</label>
+              <pre id="modalFullText" class="p-3 rounded bg-black text-secondary small" style="max-height: 180px; overflow-y: auto; white-space: pre-wrap;"></pre>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer border-secondary">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div class="toast-container position-fixed bottom-0 end-0 p-3">
+    <div id="liveToast" class="toast align-items-center text-bg-dark border border-secondary" role="alert" aria-live="assertive" aria-atomic="true">
+      <div class="d-flex">
+        <div class="toast-body d-flex align-items-center gap-2">
+          <i id="toastIcon" class="bi bi-info-circle-fill text-primary"></i>
+          <span id="toastMessage">Action completed!</span>
+        </div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <!-- Application JS -->
+  <script src="app.js"></script>
+</body>
+</html>
