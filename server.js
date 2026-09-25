@@ -16,29 +16,20 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // Status / Health check
 app.get('/api/status', (req, res) => {
+  if (process.env.SERPER_API_KEY) {
+    return res.json({ status: 'ready', mode: 'serper', message: 'Using Serper.dev (cloud-safe, 2500 free/month).' });
+  }
   if (process.env.SERPAPI_KEY) {
-    return res.json({
-      status: 'ready',
-      mode: 'serpapi',
-      message: 'Using SerpAPI (cloud-safe mode). Ready to scrape Google Business profiles.'
-    });
+    return res.json({ status: 'ready', mode: 'serpapi', message: 'Using SerpAPI (cloud-safe mode).' });
   }
   try {
     const chromePath = findChromeExecutable();
-    res.json({
-      status: 'ready',
-      mode: 'puppeteer',
-      browser: chromePath,
-      message: 'Using direct browser (local mode). Ready to scrape Google Business profiles.'
-    });
+    res.json({ status: 'ready', mode: 'puppeteer', browser: chromePath, message: 'Using direct browser (local mode).' });
   } catch (err) {
-    res.status(500).json({
-      status: 'error',
-      mode: 'none',
-      message: err.message
-    });
+    res.status(500).json({ status: 'error', mode: 'none', message: err.message });
   }
 });
+
 
 // Main Scraping Endpoint
 app.post('/api/scrape', async (req, res) => {

@@ -318,19 +318,101 @@ async function scrapeViaPuppeteer(businessType, location, scrollMore = false) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Method 1b: Serper.dev  (2500 free searches/month, no credit card needed)
+// Get free key at: https://serper.dev
+// Set env var: SERPER_API_KEY=your_key_here
+// ─────────────────────────────────────────────────────────────────────────────
+async function scrapeViaSerper(businessType, location) {
+  const apiKey = process.env.SERPER_API_KEY;
+  if (!apiKey) throw new Error('SERPER_API_KEY not set');
+
+  const query = `${businessType.trim()} in ${location.trim()}`;
+  console.log(`[Serper] Requesting: ${query}`);
+
+  const res = await fetch('https://google.serper.dev/places', {
+    method: 'POST',
+    headers: {
+      'X-API-KEY': apiKey,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ q: query, gl: 'in', hl: 'en' }),
+    signal: AbortSignal.timeout(20000)
+  });
+
+  if (!res.ok) {
+    const errBody = await res.text().catch(() => '');
+    throw new Error(`Serper HTTP ${res.status}: ${errBody.slice(0, 300)}`);
+  }
+
+  const data = await res.json();
+  const places = data.places || [];
+  console.log(`[Serper] Got ${places.length} places`);
+
+  const jsonData = places.map((item, index) => {
+    const fullText = [
+      item.title,
+      item.category,
+      item.address,
+      item.phoneNumber,
+      item.hours,
+      item.description
+    ].filter(Boolean).join('\n');
+
+    // Parse opening hours
+    let status = '', closingTime = '';
+    if (item.openingHours) {
+      const hoursText = Array.isArray(item.openingHours) ? item.openingHours.join(' ') : String(item.openingHours);
+      const sm = hoursText.match(/(Open|Closed|Opens|Closes)/i);
+      if (sm) status = sm[1];
+      const tm = hoursText.match(/(?:Closes?\s*)(\d+(?::\d+)?\s*[apAP][mM])/i);
+      if (tm) closingTime = tm[1];
+    }
+
+    return {
+      entry_id: index + 1,
+      company_name: item.title || 'No Name',
+      phone: item.phoneNumber || 'N/A',
+      rating: item.rating || null,
+      review_count: item.ratingCount ? String(item.ratingCount) : null,
+      category: item.category || '',
+      location: item.address || '',
+      status,
+      closing_time: closingTime,
+      service_type: '',
+      website: item.website || '',
+      details: fullText
+    };
+  });
+
+  return {
+    success: true,
+    count: jsonData.length,
+    data: jsonData,
+    csv: convertToCSV(jsonData),
+    txt: jsonData.map(d => `--- Entry ${d.entry_id}: ${d.company_name} ---\nPhone: ${d.phone}\nDetails:\n${d.details}\n`).join('\n---\n\n')
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Main Export: scrapeGoogleBusiness
-// Automatically picks the best method:
-//   1. SerpAPI  → if SERPAPI_KEY env var is set (works everywhere)
-//   2. Puppeteer → fallback (works locally, may fail on cloud)
+// Automatically picks the best available method:
+//   1. SERPER_API_KEY  → serper.dev (2500 free/month — RECOMMENDED for cloud)
+//   2. SERPAPI_KEY     → serpapi.com (100 free/month)
+//   3. Puppeteer       → direct browser (works locally, blocked on cloud IPs)
 // ─────────────────────────────────────────────────────────────────────────────
 async function scrapeGoogleBusiness(businessType, location, options = {}) {
+  if (process.env.SERPER_API_KEY) {
+    console.log('[Scraper] Using Serper.dev (cloud-safe mode)');
+    return scrapeViaSerper(businessType, location);
+  }
   if (process.env.SERPAPI_KEY) {
     console.log('[Scraper] Using SerpAPI (cloud-safe mode)');
     return scrapeViaSerpAPI(businessType, location);
   }
-  console.log('[Scraper] SERPAPI_KEY not set. Using direct Puppeteer (local mode)');
+  console.log('[Scraper] No API key found. Using direct Puppeteer (local mode only)');
   return scrapeViaPuppeteer(businessType, location, options.scrollMore || false);
 }
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Cheerio offline HTML extractor (unchanged)
