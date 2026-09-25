@@ -16,16 +16,25 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // Status / Health check
 app.get('/api/status', (req, res) => {
+  if (process.env.SERPAPI_KEY) {
+    return res.json({
+      status: 'ready',
+      mode: 'serpapi',
+      message: 'Using SerpAPI (cloud-safe mode). Ready to scrape Google Business profiles.'
+    });
+  }
   try {
     const chromePath = findChromeExecutable();
     res.json({
       status: 'ready',
+      mode: 'puppeteer',
       browser: chromePath,
-      message: 'Scraper engine is ready to extract Google Business profiles.'
+      message: 'Using direct browser (local mode). Ready to scrape Google Business profiles.'
     });
   } catch (err) {
     res.status(500).json({
       status: 'error',
+      mode: 'none',
       message: err.message
     });
   }
