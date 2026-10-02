@@ -37,10 +37,69 @@ const serverStatusBadge = document.getElementById('serverStatusBadge');
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
+  initSessionActivity();
   checkServerStatus();
   initPresetTags();
   initOfflineParser();
 });
+
+const SESSION_IDLE_TIMEOUT_MS = 5 * 60 * 1000;
+const SESSION_HEARTBEAT_INTERVAL_MS = 15 * 1000;
+let lastSessionActivityAt = Date.now();
+let lastSessionHeartbeatAt = 0;
+let sessionIdleTimer;
+
+function expireLocalSession() {
+  window.location.replace('/');
+}
+
+function resetSessionIdleTimer() {
+  clearTimeout(sessionIdleTimer);
+  sessionIdleTimer = setTimeout(expireLocalSession, SESSION_IDLE_TIMEOUT_MS);
+}
+
+function recordSessionActivity() {
+  if (Date.now() - lastSessionActivityAt >= SESSION_IDLE_TIMEOUT_MS) {
+    expireLocalSession();
+    return;
+  }
+  lastSessionActivityAt = Date.now();
+  resetSessionIdleTimer();
+  if (lastSessionActivityAt - lastSessionHeartbeatAt >= SESSION_HEARTBEAT_INTERVAL_MS) {
+    sendSessionHeartbeat();
+  }
+}
+
+async function sendSessionHeartbeat() {
+  if (document.visibilityState !== 'visible' ||
+      lastSessionActivityAt <= lastSessionHeartbeatAt) return;
+
+  lastSessionHeartbeatAt = lastSessionActivityAt;
+  try {
+    const response = await fetch('/api/session/heartbeat', { method: 'POST' });
+    if (response.status === 401) expireLocalSession();
+  } catch (error) {
+    console.error('Could not refresh the access session:', error);
+  }
+}
+
+function initSessionActivity() {
+  ['pointerdown', 'keydown', 'scroll', 'touchstart'].forEach(eventName => {
+    document.addEventListener(eventName, recordSessionActivity, { passive: true });
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      recordSessionActivity();
+      sendSessionHeartbeat();
+    }
+  });
+  window.addEventListener('pagehide', event => {
+    if (event.persisted) return;
+    navigator.sendBeacon('/api/session/logout', new Blob([], { type: 'text/plain' }));
+  });
+
+  resetSessionIdleTimer();
+}
 
 // Check Server Status
 async function checkServerStatus() {

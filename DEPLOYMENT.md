@@ -51,6 +51,12 @@ git push -u origin main
 Render will build the Docker container with Google Chrome and all dependencies already included. Within 2-3 minutes, your site will be live at:
 👉 `https://your-app-name.onrender.com`
 
+### Configure access-key verification
+
+In the Supabase SQL Editor, run [`supabase/verify-payment-key.sql`](./supabase/verify-payment-key.sql) once. It creates a restricted database function to check `public.payment.key` without granting visitors access to read payment records. Direct table lookup is blocked by row-level security on many Supabase projects, which can make a real key appear invalid.
+
+The Supabase project URL and publishable key are configured in `server.js` with environment-variable overrides. To use another Supabase project, set `SUPABASE_URL` and `SUPABASE_KEY` in the hosting provider's environment settings. Sessions expire after five minutes without activity. Closing, reloading, or leaving the app tab ends the session. Sessions are stored in server memory and end when the server restarts.
+
 ---
 
 ## ⚡ Option 2: Deploying on Vercel

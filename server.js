@@ -1,18 +1,60 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const crypto = require('crypto');
 const { scrapeGoogleBusiness, extractCardsFromCheerio, findChromeExecutable } = require('./scraper');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://jbfamutyfrkqgiwnguwh.supabase.co';
+const SUPABASE_KEY = process.env.SUPABASE_KEY || 'sb_publishable_eM5nSaC4ugW5X-ix7otrsg_SzAyCPo2';
+const SESSION_IDLE_TTL_MS = 5 * 60 * 1000;
+const sessions = new Map();
+
+function getSessionToken(req) {
+  const cookie = req.headers.cookie || '';
+  const match = cookie.match(/(?:^|;\s*)key_access_session=([^;]+)/);
+  return match ? match[1] : null;
+}
+
+function requireAccess(req, res, next) {
+  const token = getSessionToken(req);
+  const session = token && sessions.get(token);
+
+  if (!session || Date.now() - session.lastActivityAt >= SESSION_IDLE_TTL_MS) {
+    if (token) sessions.delete(token);
+    if (req.path.startsWith('/api/')) {
+      return res.status(401).json({ success: false, error: 'Please enter a valid access key.' });
+    }
+    return res.redirect('/');
+  }
+
+  session.lastActivityAt = Date.now();
+  next();
+}
 
 // Enable CORS and JSON parsing (with 20MB limit for uploading large HTML files)
 app.use(cors());
 app.use(express.json({ limit: '25mb' }));
 app.use(express.urlencoded({ extended: true, limit: '25mb' }));
 
-// Serve frontend static files
-app.use(express.static(path.join(__dirname, 'public')));
+app.get('/', (req, res) => {
+  const token = getSessionToken(req);
+  const session = token && sessions.get(token);
+  if (session && Date.now() - session.lastActivityAt < SESSION_IDLE_TTL_MS) {
+    session.lastActivityAt = Date.now();
+    return res.redirect('/index.html');
+  }
+  if (token) sessions.delete(token);
+  res.sendFile(path.join(__dirname, 'public', 'login.html'));
+});
+
+app.get('/index.html', requireAccess, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// Do not let static middleware serve index.html outside the access gate above.
+app.use(express.static(path.join(__dirname, 'public'), { index: false }));
 
 // Status / Health check
 app.get('/api/status', (req, res) => {
@@ -30,9 +72,84 @@ app.get('/api/status', (req, res) => {
   }
 });
 
+app.post('/api/verify-key', async (req, res) => {
+  const key = typeof req.body.key === 'string' ? req.body.key.trim() : '';
+  if (!key) return res.status(400).json({ success: false, error: 'Please enter your access key.' });
+
+  const endpoint = new URL('/rest/v1/rpc/verify_payment_key', SUPABASE_URL);
+  let isValid;
+  try {
+    const response = await fetch(endpoint, {
+      headers: {
+        apikey: SUPABASE_KEY,
+        Authorization: `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      method: 'POST',
+      body: JSON.stringify({ candidate_key: key }),
+      signal: AbortSignal.timeout(10000)
+    });
+
+    if (!response.ok) {
+      const details = await response.text();
+      console.error(`[Auth] Supabase returned ${response.status}: ${details}`);
+      return res.status(503).json({
+        success: false,
+        error: 'Could not verify this key. Please try again later.'
+      });
+    }
+
+    isValid = await response.json();
+    if (typeof isValid !== 'boolean') {
+      console.error('[Auth] Supabase returned an unexpected payment verification response.');
+      return res.status(503).json({
+        success: false,
+        error: 'Could not verify this key. Please try again later.'
+      });
+    }
+  } catch (err) {
+    console.error('[Auth] Supabase key verification request failed:', err);
+    return res.status(503).json({
+      success: false,
+      error: 'Could not verify this key. Please try again later.'
+    });
+  }
+
+  if (!isValid) {
+    return res.status(401).json({ success: false, error: 'Invalid key. Please check your key and try again.' });
+  }
+
+  const token = crypto.randomBytes(32).toString('hex');
+  const now = Date.now();
+  for (const [sessionToken, session] of sessions) {
+    if (now - session.lastActivityAt >= SESSION_IDLE_TTL_MS) sessions.delete(sessionToken);
+  }
+  sessions.set(token, { lastActivityAt: now });
+  const secure = req.secure || req.headers['x-forwarded-proto'] === 'https';
+  res.setHeader(
+    'Set-Cookie',
+    `key_access_session=${token}; HttpOnly; SameSite=Strict; Path=/${secure ? '; Secure' : ''}`
+  );
+  res.json({ success: true });
+});
+
+app.post('/api/session/logout', (req, res) => {
+  const token = getSessionToken(req);
+  if (token) sessions.delete(token);
+  const secure = req.secure || req.headers['x-forwarded-proto'] === 'https';
+  res.setHeader(
+    'Set-Cookie',
+    `key_access_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0${secure ? '; Secure' : ''}`
+  );
+  res.sendStatus(204);
+});
+
+app.post('/api/session/heartbeat', requireAccess, (req, res) => {
+  res.sendStatus(204);
+});
 
 // Main Scraping Endpoint
-app.post('/api/scrape', async (req, res) => {
+app.post('/api/scrape', requireAccess, async (req, res) => {
   const { type, location, scrollMore } = req.body;
 
   if (!type || !type.trim()) {
@@ -70,7 +187,7 @@ app.post('/api/scrape', async (req, res) => {
 });
 
 // Download CSV direct file endpoint
-app.post('/api/download-csv', (req, res) => {
+app.post('/api/download-csv', requireAccess, (req, res) => {
   const { csv, filename } = req.body;
   if (!csv) {
     return res.status(400).send('No CSV content provided.');
@@ -84,7 +201,7 @@ app.post('/api/download-csv', (req, res) => {
 });
 
 // Parse Offline HTML
-app.post('/api/parse-html', (req, res) => {
+app.post('/api/parse-html', requireAccess, (req, res) => {
   const { html, filename } = req.body;
   if (!html || !html.trim()) {
     return res.status(400).json({ success: false, error: 'HTML content is empty.' });

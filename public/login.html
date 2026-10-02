@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Access key | Google CRM Finder</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .access-card {
+      width: min(100% - 2rem, 440px);
+      margin: 12vh auto 0;
+      padding: 2.5rem;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      box-shadow: 0 24px 70px rgba(0, 0, 0, .3);
+    }
+
+    .access-mark {
+      display: grid;
+      place-items: center;
+      width: 52px;
+      height: 52px;
+      margin: 0 auto 1.25rem;
+      color: #93c5fd;
+      background: rgba(59, 130, 246, .15);
+      border: 1px solid rgba(59, 130, 246, .3);
+      border-radius: 15px;
+      font-size: 1.4rem;
+    }
+
+    .access-input {
+      color: #fff;
+      background: #1a2234;
+      border-color: #2e3a52;
+    }
+
+    .access-input:focus {
+      color: #fff;
+      background: #1e283d;
+      border-color: var(--primary-accent);
+      box-shadow: 0 0 0 .25rem rgba(59, 130, 246, .25);
+    }
+
+    @media (max-width: 480px) {
+      .access-card { padding: 1.75rem; }
+    }
+  </style>
+  <script src="login.js" defer></script>
+</head>
+<body>
+  <main class="access-card">
+    <div class="access-mark" aria-hidden="true"><i class="bi bi-shield-lock-fill"></i></div>
+    <div class="text-center mb-4">
+      <h1 class="h3 fw-bold text-white mb-2">Enter your access key</h1>
+      <p class="text-secondary mb-0">Use the key provided with your access pass.</p>
+    </div>
+    <form id="accessForm">
+      <label for="accessKey" class="form-label text-light fw-semibold">Access key</label>
+      <input class="form-control form-control-lg access-input mb-3" id="accessKey" name="key"
+             type="password" autocomplete="off" required autofocus>
+      <button class="btn btn-primary btn-lg w-100 fw-bold" id="submitButton" type="submit">
+        <span id="buttonLabel">Verify and continue</span>
+      </button>
+      <p id="feedback" class="small mt-3 mb-0 text-center" role="alert" aria-live="polite"></p>
+    </form>
+  </main>
+</body>
+</html>
