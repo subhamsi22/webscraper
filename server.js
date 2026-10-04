@@ -6,8 +6,8 @@ const { scrapeGoogleBusiness, extractCardsFromCheerio, findChromeExecutable } = 
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const SUPABASE_URL = process.env.SUPABASE_URL || 'https://jbfamutyfrkqgiwnguwh.supabase.co';
-const SUPABASE_KEY = process.env.SUPABASE_KEY || 'sb_publishable_eM5nSaC4ugW5X-ix7otrsg_SzAyCPo2';
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://vdxebetyqodillkzyles.supabase.co';
+const SUPABASE_KEY = process.env.SUPABASE_KEY || 'sb_publishable_0SAZf3QMqeiZw4De_7Z1bg_6m3KFtAW';
 const SESSION_IDLE_TTL_MS = 5 * 60 * 1000;
 const sessions = new Map();
 

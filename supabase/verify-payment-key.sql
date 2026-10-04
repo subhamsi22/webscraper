@@ -6,8 +6,9 @@ set search_path = ''
 as $$
   select exists (
     select 1
-    from public.payment as payment_row
-    where payment_row."key" = candidate_key
+    from public.paid_licenses as license_row
+    where license_row.license_key = candidate_key
+      and upper(license_row.status) = 'PAID'
   );
 $$;
 
